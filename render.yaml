@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: smart-helmet-telemetry
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js

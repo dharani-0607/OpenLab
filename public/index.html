@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Helmet & Bike Telemetry System | Dual-Node IoT Cockpit</title>
+  
+  <!-- Fonts: Inter & JetBrains Mono for avionics/automotive precision typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for GPS Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="telemetry-theme">
+
+  <!-- TOP HUD STATUS BAR -->
+  <header class="hud-header">
+    <div class="hud-brand">
+      <div class="hud-logo-icon">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2a8 8 0 0 0-8 8c0 4.418 3.582 8 8 8s8-3.582 8-8a8 8 0 0 0-8-8z"/>
+          <path d="M4 12h16M12 4v16"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="hud-title">VANGUARD-IOT</h1>
+        <div class="hud-subtitle">SMART HELMET & BIKE TELEMETRY PLATFORM</div>
+      </div>
+    </div>
+
+    <!-- Dual Node Link Status -->
+    <div class="node-status-cluster">
+      <!-- Node 1: Helmet -->
+      <div class="node-pill" id="helmetNodePill">
+        <div class="node-pulse-indicator" id="helmetPulseDot"></div>
+        <div class="node-info">
+          <span class="node-name">NODE 1: HELMET (ESP32)</span>
+          <span class="node-meta" id="helmetMetaText">Awaiting Packets...</span>
+        </div>
+        <span class="node-badge" id="helmetBadge">OFFLINE</span>
+      </div>
+
+      <!-- Node 2: Bike -->
+      <div class="node-pill" id="bikeNodePill">
+        <div class="node-pulse-indicator" id="bikePulseDot"></div>
+        <div class="node-info">
+          <span class="node-name">NODE 2: BIKE RADAR (ESP32)</span>
+          <span class="node-meta" id="bikeMetaText">Awaiting Packets...</span>
+        </div>
+        <span class="node-badge" id="bikeBadge">OFFLINE</span>
+      </div>
+    </div>
+
+    <!-- System Actions & Clock -->
+    <div class="hud-controls">
+      <button class="btn btn-primary" id="openSimBtn">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span>Hardware Test Bench</span>
+      </button>
+
+      <div class="hud-clock">
+        <span class="clock-label">SYS UTC</span>
+        <span class="clock-value" id="systemClock">--:--:--</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MASTER IGNITION SAFETY BANNER -->
+  <section class="master-safety-banner" id="masterSafetyBanner">
+    <div class="banner-status-icon" id="bannerStatusIcon">
+      <svg class="icon-locked" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <svg class="icon-unlocked" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+      </svg>
+    </div>
+    <div class="banner-content">
+      <div class="banner-title" id="bannerTitle">IGNITION INTERLOCK ENGAGED</div>
+      <div class="banner-desc" id="bannerDesc">Engine ignition start is electronically locked. All 3 safety conditions must pass.</div>
+    </div>
+    <div class="banner-checklist">
+      <div class="check-item" id="checkAlcohol">
+        <span class="check-indicator"></span>
+        <span class="check-label">1. Alcohol Safe (&lt;750)</span>
+      </div>
+      <div class="check-item" id="checkBuckle">
+        <span class="check-indicator"></span>
+        <span class="check-label">2. Helmet Buckled</span>
+      </div>
+      <div class="check-item" id="checkRfid">
+        <span class="check-indicator"></span>
+        <span class="check-label">3. RFID Authorized</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CRASH EMERGENCY ALERT OVERLAY (Strobe alert if high-G impact detected) -->
+  <div class="crash-alert-bar" id="crashAlertBar">
+    <div class="crash-alert-content">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <div>
+        <strong>CRITICAL HIGH-G IMPACT DETECTED!</strong>
+        <span>Possible collision or sudden decelerative fall. Instant emergency protocol triggered.</span>
+      </div>
+    </div>
+    <button class="btn btn-outline-danger" id="dismissCrashBtn">Acknowledge</button>
+  </div>
+
+  <!-- MAIN TELEMETRY GRID -->
+  <main class="dashboard-grid">
+
+    <!-- ============================================== -->
+    <!-- COLUMN 1: SMART HELMET NODE TELEMETRY          -->
+    <!-- ============================================== -->
+    <div class="telemetry-column">
+      <div class="column-header">
+        <div class="column-tag">SUBSYSTEM 01</div>
+        <h2 class="column-title">SMART HELMET TELEMETRY</h2>
+      </div>
+
+      <!-- Card: Rider Safety Interlock -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">Interlock & Access Verification</span>
+          <span class="card-badge" id="interlockBadge">LOCKED</span>
+        </div>
+        <div class="card-body">
+          <!-- 3-way telemetry metrics -->
+          <div class="metric-triplet">
+            <!-- RFID Metric -->
+            <div class="metric-box" id="rfidMetricBox">
+              <span class="metric-tag">RIDER RFID AUTH</span>
+              <div class="metric-large-text" id="rfidStatusText">DENIED</div>
+              <div class="metric-subdetail">
+                <span>UID: <strong id="rfidUidText">-- -- -- --</strong></span>
+              </div>
+              <div class="rfid-timer-wrap">
+                <div class="rfid-timer-bar" id="rfidTimerBar"></div>
+              </div>
+            </div>
+
+            <!-- Buckle Switch Metric -->
+            <div class="metric-box" id="buckleMetricBox">
+              <span class="metric-tag">CHINSTRAP RETENTION</span>
+              <div class="metric-large-text" id="buckleStatusText">OPEN</div>
+              <div class="metric-subdetail">
+                <span>GPIO27 State: <strong id="buckleGpioText">HIGH (OPEN)</strong></span>
+              </div>
+            </div>
+
+            <!-- Alcohol MQ-3 Metric -->
+            <div class="metric-box" id="alcoholMetricBox">
+              <span class="metric-tag">MQ-3 BREATH ALCOHOL</span>
+              <div class="metric-large-val">
+                <span id="alcoholVal">0</span>
+                <span class="metric-unit">ADC</span>
+              </div>
+              <div class="metric-subdetail">
+                <span>Limit: <strong>750 ADC</strong></span>
+                <span id="alcoholStatusTag" class="tag-status safe">SAFE</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alcohol Gauge Bar -->
+          <div class="gauge-bar-wrapper">
+            <div class="gauge-labels">
+              <span>0 (Clean)</span>
+              <span>750 (Threshold)</span>
+              <span>4095 (Max)</span>
+            </div>
+            <div class="gauge-track">
+              <div class="gauge-fill" id="alcoholGaugeFill"></div>
+              <div class="gauge-limit-marker" style="left: 18.3%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Rider Biometrics (Heart Rate, SpO2, Temperature) -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">Rider Biometrics & Physiological State</span>
+          <span class="card-subtitle">MAX30105 Optical &amp; LM35 Probe</span>
+        </div>
+        <div class="card-body">
+          <div class="biometrics-grid">
+            <!-- Heart Rate with Pulse Graph -->
+            <div class="bio-panel">
+              <div class="bio-header">
+                <span class="metric-tag">HEART RATE</span>
+                <span class="pulse-bpm-live" id="pulseBpmLive">-- BPM</span>
+              </div>
+              <div class="ecg-canvas-container">
+                <canvas id="ecgCanvas" width="300" height="70"></canvas>
+                <div class="ecg-status-overlay" id="ecgStatus">ACQUIRING PULSE...</div>
+              </div>
+            </div>
+
+            <!-- SpO2 & Temp -->
+            <div class="bio-stats">
+              <div class="stat-card">
+                <span class="metric-tag">PULSE OXIMETRY (SpO₂)</span>
+                <div class="stat-val-group">
+                  <span class="stat-num" id="spo2Num">--</span>
+                  <span class="stat-unit">%</span>
+                </div>
+                <div class="stat-caption" id="spo2Caption">Experimental Calculation</div>
+              </div>
+
+              <div class="stat-card">
+                <span class="metric-tag">HELMET INTERIOR TEMP</span>
+                <div class="stat-val-group">
+                  <span class="stat-num" id="tempNum">--</span>
+                  <span class="stat-unit">°C</span>
+                </div>
+                <div class="stat-caption">LM35 Thermal Sensor</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: 6-Axis Inertial Motion & Impact (MPU-6050) -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">Inertial Measurement (MPU-6050 6-DOF)</span>
+          <span class="metric-badge-mag" id="accelMagBadge">9.81 m/s² (1.0G)</span>
+        </div>
+        <div class="card-body">
+          <!-- 3-Axis Accel & Gyro bars -->
+          <div class="imu-bars-grid">
+            <div class="imu-axis-row">
+              <span class="axis-name">ACCEL X</span>
+              <div class="axis-bar-track">
+                <div class="axis-bar-center"></div>
+                <div class="axis-bar-fill" id="accelBarX"></div>
+              </div>
+              <span class="axis-val" id="accelValX">0.00 m/s²</span>
+            </div>
+            <div class="imu-axis-row">
+              <span class="axis-name">ACCEL Y</span>
+              <div class="axis-bar-track">
+                <div class="axis-bar-center"></div>
+                <div class="axis-bar-fill" id="accelBarY"></div>
+              </div>
+              <span class="axis-val" id="accelValY">0.00 m/s²</span>
+            </div>
+            <div class="imu-axis-row">
+              <span class="axis-name">ACCEL Z</span>
+              <div class="axis-bar-track">
+                <div class="axis-bar-center"></div>
+                <div class="axis-bar-fill" id="accelBarZ"></div>
+              </div>
+              <span class="axis-val" id="accelValZ">9.81 m/s²</span>
+            </div>
+          </div>
+
+          <div class="gyro-readouts">
+            <div class="gyro-pill">
+              <span class="gyro-label">ωX:</span>
+              <span class="gyro-val" id="gyroValX">0.000 rad/s</span>
+            </div>
+            <div class="gyro-pill">
+              <span class="gyro-label">ωY:</span>
+              <span class="gyro-val" id="gyroValY">0.000 rad/s</span>
+            </div>
+            <div class="gyro-pill">
+              <span class="gyro-label">ωZ:</span>
+              <span class="gyro-val" id="gyroValZ">0.000 rad/s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================== -->
+    <!-- COLUMN 2: BIKE RADAR & BLIND-SPOT DETECTION    -->
+    <!-- ============================================== -->
+    <div class="telemetry-column">
+      <div class="column-header">
+        <div class="column-tag">SUBSYSTEM 02</div>
+        <h2 class="column-title">BIKE RADAR & BLIND-SPOT SENSORS</h2>
+      </div>
+
+      <!-- Card: Active 2D Ultrasonic Radar Field -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">Rear Blind-Spot Proximity Radar</span>
+          <div class="hud-led-indicator" id="hudLedIndicator">
+            <span class="led-dot" id="ledDot"></span>
+            <span class="led-label">HELMET HUD LED (GPIO26)</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="radar-visual-arena">
+            <!-- Left Sector Radar -->
+            <div class="radar-sector radar-left" id="radarLeftSector">
+              <div class="radar-pulse-wave wave-1"></div>
+              <div class="radar-pulse-wave wave-2"></div>
+              <div class="radar-label-box">
+                <span class="radar-sector-name">PORT (LEFT)</span>
+                <span class="radar-dist-readout" id="leftDistDisplay">-- cm</span>
+                <span class="radar-status-badge" id="leftStatusBadge">CLEAR</span>
+              </div>
+            </div>
+
+            <!-- Motorcycle Center Silhouette -->
+            <div class="bike-chassis-model">
+              <svg viewBox="0 0 100 180" width="90" height="160" fill="none" class="bike-svg">
+                <!-- Front wheel -->
+                <rect x="44" y="8" width="12" height="34" rx="6" fill="#475569" stroke="#94a3b8" stroke-width="2"/>
+                <!-- Handlebars -->
+                <path d="M20 38 L80 38" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+                <circle cx="20" cy="38" r="4" fill="#38bdf8"/>
+                <circle cx="80" cy="38" r="4" fill="#38bdf8"/>
+                <!-- Mirrors -->
+                <path d="M22 36 L12 28" stroke="#38bdf8" stroke-width="2"/>
+                <path d="M78 36 L88 28" stroke="#38bdf8" stroke-width="2"/>
+                <!-- Fuel tank & Main Frame -->
+                <path d="M38 52 C35 75 35 110 40 135 L60 135 C65 110 65 75 62 52 Z" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+                <!-- Seat -->
+                <path d="M36 85 C36 78 64 78 64 85 L62 118 C62 124 38 124 38 118 Z" fill="#0f172a" stroke="#0ea5e9" stroke-width="1.5"/>
+                <!-- Rear wheel & swingarm -->
+                <rect x="43" y="132" width="14" height="42" rx="7" fill="#475569" stroke="#94a3b8" stroke-width="2"/>
+                <!-- Left & Right Ultrasonic Sensors -->
+                <circle cx="26" cy="148" r="5" fill="#f59e0b" stroke="#fff" stroke-width="1.5"/>
+                <circle cx="74" cy="148" r="5" fill="#f59e0b" stroke="#fff" stroke-width="1.5"/>
+                <text x="50" y="105" fill="#38bdf8" font-size="8" font-family="'JetBrains Mono', monospace" text-anchor="middle" font-weight="700">BIKE NODE</text>
+              </svg>
+            </div>
+
+            <!-- Right Sector Radar -->
+            <div class="radar-sector radar-right" id="radarRightSector">
+              <div class="radar-pulse-wave wave-1"></div>
+              <div class="radar-pulse-wave wave-2"></div>
+              <div class="radar-label-box">
+                <span class="radar-sector-name">STARBOARD (RIGHT)</span>
+                <span class="radar-dist-readout" id="rightDistDisplay">-- cm</span>
+                <span class="radar-status-badge" id="rightStatusBadge">CLEAR</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Radar Distance Range Bars -->
+          <div class="ultrasonic-meters">
+            <div class="meter-block">
+              <div class="meter-top">
+                <span>Left Ultrasonic (HC-SR04)</span>
+                <strong id="leftMeterVal">100.0 cm</strong>
+              </div>
+              <div class="dist-track">
+                <div class="dist-fill" id="leftDistFill" style="width: 50%;"></div>
+                <div class="dist-limit-marker" style="left: 25%;"></div>
+              </div>
+            </div>
+
+            <div class="meter-block">
+              <div class="meter-top">
+                <span>Right Ultrasonic (HC-SR04)</span>
+                <strong id="rightMeterVal">99.9 cm</strong>
+              </div>
+              <div class="dist-track">
+                <div class="dist-fill" id="rightDistFill" style="width: 49.9%;"></div>
+                <div class="dist-limit-marker" style="left: 25%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: GPS Telemetry & Map Navigation -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">GPS Navigation & Kinematics</span>
+          <span class="card-badge" id="gpsStatusBadge">SIMULATED FIX</span>
+        </div>
+        <div class="card-body">
+          <div class="gps-telemetry-strip">
+            <div class="gps-metric">
+              <span class="metric-tag">LATITUDE</span>
+              <span class="gps-coord" id="latCoord">10.045714° N</span>
+            </div>
+            <div class="gps-metric">
+              <span class="metric-tag">LONGITUDE</span>
+              <span class="gps-coord" id="lonCoord">76.045714° E</span>
+            </div>
+            <div class="gps-metric">
+              <span class="metric-tag">VELOCITY</span>
+              <div class="speed-group">
+                <span class="speed-val" id="speedDisplay">0.0</span>
+                <span class="speed-unit">km/h</span>
+              </div>
+            </div>
+            <div class="gps-metric">
+              <span class="metric-tag">MOTION STATE</span>
+              <span class="motion-tag" id="motionTag">STOPPED</span>
+            </div>
+          </div>
+
+          <!-- Leaflet Interactive Map -->
+          <div class="map-container" id="gpsMap"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- RECENT SYSTEM EVENTS LOG -->
+  <footer class="system-event-log-container">
+    <div class="log-header">
+      <div class="log-title">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        <span>REAL-TIME AUDIT & EVENT DISPATCH STREAM</span>
+      </div>
+      <span class="log-count" id="eventCount">0 events</span>
+    </div>
+    <div class="log-feed" id="eventLogFeed">
+      <div class="log-item info">
+        <span class="log-time">INITIALIZING</span>
+        <span class="log-cat">[SYSTEM]</span>
+        <span class="log-msg">Connecting to Server-Sent Event stream...</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- HARDWARE TEST BENCH MODAL (Allows direct manual simulation injection) -->
+  <div class="modal-backdrop" id="simModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <h3 class="modal-title">Hardware Telemetry Test Bench & Injector</h3>
+          <p class="modal-subtitle">Directly test dashboard indicators and live logic without waiting for physical hardware or Cirkit updates.</p>
+        </div>
+        <button class="btn-close" id="closeSimBtn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="sim-grid">
+          <!-- Helmet Injection Group -->
+          <div class="sim-group">
+            <h4 class="sim-group-title">NODE 1: HELMET INJECTION</h4>
+            
+            <div class="sim-row">
+              <label>Buckle Switch (GPIO27):</label>
+              <div class="toggle-switch-wrap">
+                <input type="checkbox" id="simBuckle" checked>
+                <label for="simBuckle" class="toggle-slider"></label>
+                <span id="simBuckleLabel" class="sim-val-label">FASTENED</span>
+              </div>
+            </div>
+
+            <div class="sim-row">
+              <label>RFID Card Authorization:</label>
+              <div class="sim-action-row">
+                <button class="btn btn-sm btn-success" id="simRfidAuth">Authorize "DE AD BE EF"</button>
+                <button class="btn btn-sm btn-danger" id="simRfidDeny">Deny Card</button>
+              </div>
+            </div>
+
+            <div class="sim-row">
+              <div class="sim-label-val">
+                <label>MQ-3 Alcohol Sensor:</label>
+                <span id="simAlcoholVal">250 ADC (Safe)</span>
+              </div>
+              <input type="range" id="simAlcoholSlider" min="0" max="2500" value="250" class="sim-range">
+            </div>
+
+            <div class="sim-row">
+              <label>Crash Impact Trigger (MPU6050):</label>
+              <button class="btn btn-sm btn-danger" id="simCrashBtn">Simulate High-G Crash (35 m/s²)</button>
+            </div>
+
+            <div class="sim-row">
+              <div class="sim-label-val">
+                <label>Heart Rate (BPM):</label>
+                <span id="simBpmVal">75 BPM</span>
+              </div>
+              <input type="range" id="simBpmSlider" min="50" max="150" value="75" class="sim-range">
+            </div>
+          </div>
+
+          <!-- Bike Injection Group -->
+          <div class="sim-group">
+            <h4 class="sim-group-title">NODE 2: BIKE RADAR INJECTION</h4>
+
+            <div class="sim-row">
+              <div class="sim-label-val">
+                <label>Left Ultrasonic Distance:</label>
+                <span id="simLeftVal">120 cm (Clear)</span>
+              </div>
+              <input type="range" id="simLeftSlider" min="10" max="250" value="120" class="sim-range">
+            </div>
+
+            <div class="sim-row">
+              <div class="sim-label-val">
+                <label>Right Ultrasonic Distance:</label>
+                <span id="simRightVal">145 cm (Clear)</span>
+              </div>
+              <input type="range" id="simRightSlider" min="10" max="250" value="145" class="sim-range">
+            </div>
+
+            <div class="sim-row">
+              <div class="sim-label-val">
+                <label>Bike Speed (km/h):</label>
+                <span id="simSpeedVal">35 km/h</span>
+              </div>
+              <input type="range" id="simSpeedSlider" min="0" max="120" value="35" class="sim-range">
+            </div>
+
+            <div class="sim-quick-presets">
+              <span class="preset-label">Quick Scenarios:</span>
+              <button class="btn btn-xs btn-outline" id="presetSafeRide">Normal Safe Ride</button>
+              <button class="btn btn-xs btn-outline" id="presetBlindSpotAlert">Blind Spot Hazard</button>
+              <button class="btn btn-xs btn-outline" id="presetDrunkAttempt">Drunk Driving Interlock</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
