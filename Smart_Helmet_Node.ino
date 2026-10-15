@@ -318,11 +318,10 @@ void readMAX30105() {
   }
 }
 
-// ==================== MULTI-CHANNEL TELEMETRY ENGINE ====================
-
-const char* NGROK_HOST   = "colorably-starchless-collen.ngrok-free.dev";
-const char* GATEWAY_HOST = "10.0.0.1";
-const char* LOCAL_HOST   = "127.0.0.1";
+// Multi-Channel Telemetry Endpoints:
+const char* RENDER_HOST   = "openlab-ayc4.onrender.com";
+const char* GATEWAY_HOST  = "10.0.0.1";
+const char* LOCAL_HOST    = "127.0.0.1";
 
 WiFiClientSecure secureClient;
 WiFiClient       plainClient;
@@ -354,16 +353,16 @@ bool connectWS() {
     activeClient = &plainClient;
     connectedEndpoint = "127.0.0.1:5000";
   }
-  // Channel 3: Public Tunnel (ngrok:443 via TLS)
+  // Channel 3: Public Render Cloud (openlab-ayc4.onrender.com:443 via TLS)
   else {
-    Serial.println("[Net Engine] Testing Channel 3: Public Tunnel (ngrok:443)...");
+    Serial.println("[Net Engine] Testing Channel 3: Render Cloud (port 443)...");
     secureClient.stop();
     secureClient.setInsecure();
     secureClient.setTimeout(3500);
-    if (secureClient.connect(NGROK_HOST, 443)) {
-      Serial.println(">>> CHANNEL 3 CONNECTED: ngrok Tunnel (port 443) <<<");
+    if (secureClient.connect(RENDER_HOST, 443)) {
+      Serial.println(">>> CHANNEL 3 CONNECTED: Render Cloud (port 443) <<<");
       activeClient = &secureClient;
-      connectedEndpoint = String(NGROK_HOST);
+      connectedEndpoint = String(RENDER_HOST);
     } else {
       Serial.println("[Net Engine] Direct socket link bypassed. Using HTTP Engine.");
       return false;
@@ -504,7 +503,7 @@ void sendHelmetData() {
   const char* urls[] = {
     "http://10.0.0.1:5000/api/helmet",
     "http://127.0.0.1:5000/api/helmet",
-    "https://colorably-starchless-collen.ngrok-free.dev/api/helmet"
+    "https://openlab-ayc4.onrender.com/api/helmet"
   };
 
   bool sent = false;

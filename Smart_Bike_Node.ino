@@ -29,7 +29,7 @@ const char* WIFI_SSID     = "CirkitWifi";
 const char* WIFI_PASSWORD = "";
 
 // Multi-Channel Telemetry Endpoints:
-const char* NGROK_HOST    = "colorably-starchless-collen.ngrok-free.dev";
+const char* RENDER_HOST   = "openlab-ayc4.onrender.com";
 const char* GATEWAY_HOST  = "10.0.0.1";
 const char* LOCAL_HOST    = "127.0.0.1";
 
@@ -117,16 +117,16 @@ bool connectWS() {
     activeClient = &plainClient;
     connectedEndpoint = "127.0.0.1:5000";
   }
-  // Channel 3: Public Tunnel (ngrok:443 via TLS)
+  // Channel 3: Public Render Cloud (openlab-ayc4.onrender.com:443 via TLS)
   else {
-    Serial.println("[Net Engine] Testing Channel 3: Public Tunnel (ngrok:443)...");
+    Serial.println("[Net Engine] Testing Channel 3: Render Cloud (port 443)...");
     secureClient.stop();
     secureClient.setInsecure();
     secureClient.setTimeout(3500);
-    if (secureClient.connect(NGROK_HOST, 443)) {
-      Serial.println(">>> CHANNEL 3 CONNECTED: ngrok Tunnel (port 443) <<<");
+    if (secureClient.connect(RENDER_HOST, 443)) {
+      Serial.println(">>> CHANNEL 3 CONNECTED: Render Cloud (port 443) <<<");
       activeClient = &secureClient;
-      connectedEndpoint = String(NGROK_HOST);
+      connectedEndpoint = String(RENDER_HOST);
     } else {
       Serial.println("[Net Engine] Direct socket link bypassed. Using HTTP Engine.");
       return false;
@@ -233,7 +233,7 @@ void sendBikeData() {
   const char* urls[] = {
     "http://10.0.0.1:5000/api/bike",
     "http://127.0.0.1:5000/api/bike",
-    "https://colorably-starchless-collen.ngrok-free.dev/api/bike"
+    "https://openlab-ayc4.onrender.com/api/bike"
   };
 
   bool sent = false;
